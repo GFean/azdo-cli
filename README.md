@@ -9,6 +9,34 @@ Built by **gfean**.
 
 ---
 
+## Table of contents
+
+- [What is azdo-cli?](#what-is-azdo-cli)
+- [Commands at a glance](#commands-at-a-glance)
+- [Requirements](#requirements)
+- [Installation](#installation)
+  - [npm](#npm)
+  - [yarn](#yarn)
+- [Quick start](#quick-start)
+  - [1️⃣ Create a `.env` file](#1-create-a-env-file)
+  - [2️⃣ Initialize azdo-cli](#2-initialize-azdo-cli)
+  - [3️⃣ Run a pipeline interactively](#3-run-a-pipeline-interactively)
+- [Configuration](#configuration)
+  - [Environment variables (required)](#environment-variables-required)
+  - [`azdo.config.json`](#azdoconfigjson)
+- [`azdo build`](#azdo-build)
+  - [Common options](#common-options)
+  - [Examples](#examples)
+- [`azdo run`](#azdo-run)
+  - [Options](#options)
+  - [Examples](#examples-1)
+- [Parameter handling](#parameter-handling)
+- [Exit codes](#exit-codes)
+- [Security & design principles](#security--design-principles)
+- [Author](#author)
+
+---
+
 ## What is azdo-cli?
 
 Azure DevOps pipelines are powerful, but triggering them through the web UI can be slow and repetitive.
