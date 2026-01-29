@@ -216,11 +216,13 @@ npx azdo build
 
 ```bash
 npx azdo build
-npx azdo build --pipeline staging_build
+npx azdo build --pipeline <pipeline_id>
 npx azdo build --branch develop
 npx azdo build --param releaseNotes="Release candidate build"
 npx azdo build --no-prompt --branch main
 ```
+
+<img src="assets/build_viewer.png" alt="azdo build example output" width="900" />
 
 ---
 
@@ -249,10 +251,12 @@ npx azdo run --pipeline <pipeline_id>
 ### Examples
 
 ```bash
-npx azdo run --pipeline 42
-npx azdo run --pipeline 42 --branch main
-npx azdo run --pipeline 42 --param releaseNotes="Hotfix build"
+npx azdo run --pipeline <pipeline_id>
+npx azdo run --pipeline <pipeline_id> --branch main
+npx azdo run --pipeline <pipeline_id> --param releaseNotes="Hotfix build"
 ```
+
+<img src="assets/run_viewer.png" alt="azdo run example output" width="900" />
 
 ---
 
