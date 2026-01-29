@@ -156,11 +156,6 @@ You’ll be guided through:
 | `AZDO_PROJECT` | Exact project name            |
 | `AZDO_PAT`     | Personal Access Token         |
 
-Environment files are loaded in this order:
-
-1. `.env`
-2. `.env.internal` (overrides `.env`)
-
 ---
 
 ### `azdo.config.json`
