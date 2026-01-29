@@ -1,6 +1,6 @@
 {
   "name": "@gfean/azdo-cli",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "type": "commonjs",
   "main": "dist/cli.js",
   "types": "dist/cli.d.ts",
@@ -11,7 +11,7 @@
     "dist"
   ],
   "publishConfig": {
-    "access": "restricted"
+    "access": "public"
   },
   "scripts": {
     "build": "tsup",
