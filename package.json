@@ -1,7 +1,6 @@
 {
   "name": "@gfean/azdo-cli",
-  "version": "0.1.14",
-  "private": true,
+  "version": "0.1.15",
   "type": "commonjs",
   "main": "dist/cli.js",
   "types": "dist/cli.d.ts",
@@ -37,7 +36,8 @@
   ],
   "author": "GFean (https://github.com/GFean)",
   "license": "ISC",
-  "description": "",
+  "homepage": "https://github.com/GFean/azdo-cli",
+  "description": "A developer-friendly CLI for triggering Azure DevOps pipelines with an interactive, guided workflow.",
   "dependencies": {
     "@clack/prompts": "^0.11.0",
     "colorette": "^2.0.20",
