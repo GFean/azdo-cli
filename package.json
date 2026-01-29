@@ -1,6 +1,6 @@
 {
   "name": "@gfean/azdo-cli",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "private": true,
   "type": "commonjs",
   "main": "dist/cli.js",
@@ -23,8 +23,19 @@
     "yalc:push": "yalc push",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "azure-devops",
+    "azure-pipelines",
+    "azdo",
+    "ci-cd",
+    "pipeline",
+    "build",
+    "cli",
+    "devops",
+    "automation",
+    "developer-tools"
+  ],
+  "author": "GFean (https://github.com/GFean)",
   "license": "ISC",
   "description": "",
   "dependencies": {

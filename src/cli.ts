@@ -5,7 +5,7 @@ import { basename, extname, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import { Command } from "commander";
 import { consola } from "consola";
-import { confirm, intro, isCancel, outro, password, select, text } from "@clack/prompts";
+import { confirm, intro, isCancel, outro, password, select, spinner, text } from "@clack/prompts";
 import { createColors, isColorSupported } from "colorette";
 import dotenv from "dotenv";
 import { getAzdoConfig, getAzdoEnv } from "./config";
@@ -157,32 +157,17 @@ function parseParams(paramEntries: string[]): Record<string, string | number | b
   return params;
 }
 
-function formatElapsed(ms: number): string {
-  const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
-}
-
-function createWaitLogger(pollMs: number, pulse = true) {
-  const started = Date.now();
-  let lastState: string | undefined;
-  let lastPulse = 0;
-  const pulseMs = Math.max(10000, pollMs);
-
+function createWaitLogger(
+  waitSpinner: ReturnType<typeof spinner>,
+  label: string
+) {
+  let tick = 0;
   return {
     onUpdate: (latest: RunInfo) => {
-      if (latest.state && latest.state !== lastState) {
-        lastState = latest.state;
-        ui.info(`State: ${lastState}`);
-      }
-      if (pulse && latest.state && latest.state !== "completed") {
-        const now = Date.now();
-        if (now - lastPulse >= pulseMs) {
-          ui.info(`⏳ Still running... ${formatElapsed(now - started)}`);
-          lastPulse = now;
-        }
-      }
+      const state = latest.state ?? "pending";
+      tick = (tick + 1) % 4;
+      const dots = ".".repeat(tick);
+      waitSpinner.message(`${label}${dots} (state: ${state})`);
     },
   };
 }
@@ -888,14 +873,22 @@ const buildCommand = program
       ui.info("You can quit now; the build will continue in Azure DevOps.");
 
       if (options.wait) {
-        ui.start("Waiting for completion...");
-        const waitLogger = createWaitLogger(pollMs);
-        const completed = await waitForCompletion(apiConfig, selection.id, run.id, {
-          pollMs,
-          timeoutMs: 60 * 60 * 1000,
-          onUpdate: waitLogger.onUpdate,
-        });
-        ui.success("Build completed");
+        const waitSpinner = spinner();
+        const waitLabel = "Waiting for completion";
+        waitSpinner.start(waitLabel);
+        const waitLogger = createWaitLogger(waitSpinner, waitLabel);
+        let completed: RunInfo;
+        try {
+          completed = await waitForCompletion(apiConfig, selection.id, run.id, {
+            pollMs,
+            timeoutMs: 60 * 60 * 1000,
+            onUpdate: waitLogger.onUpdate,
+          });
+        } catch (err) {
+          waitSpinner.stop("Build wait stopped");
+          throw err;
+        }
+        waitSpinner.stop("Build completed");
         printRun(completed);
         if (completed.result !== "succeeded") {
           ui.error(`Result: ${completed.result ?? "unknown"}`);
@@ -974,14 +967,22 @@ const runCommand = program
         if (Number.isNaN(pollMs) || pollMs <= 0) {
           throw new Error("--poll must be a positive number");
         }
-        ui.start("Waiting for completion...");
-        const waitLogger = createWaitLogger(pollMs);
-        const completed = await waitForCompletion(config, pipelineId, run.id, {
-          pollMs,
-          timeoutMs: 60 * 60 * 1000,
-          onUpdate: waitLogger.onUpdate,
-        });
-        ui.success("Run completed");
+        const waitSpinner = spinner();
+        const waitLabel = "Waiting for completion";
+        waitSpinner.start(waitLabel);
+        const waitLogger = createWaitLogger(waitSpinner, waitLabel);
+        let completed: RunInfo;
+        try {
+          completed = await waitForCompletion(config, pipelineId, run.id, {
+            pollMs,
+            timeoutMs: 60 * 60 * 1000,
+            onUpdate: waitLogger.onUpdate,
+          });
+        } catch (err) {
+          waitSpinner.stop("Run wait stopped");
+          throw err;
+        }
+        waitSpinner.stop("Run completed");
         printRun(completed);
         if (completed.result !== "succeeded") {
           ui.error(`Result: ${completed.result ?? "unknown"}`);
