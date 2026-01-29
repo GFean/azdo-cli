@@ -79,13 +79,13 @@ It’s designed to feel **interactive when you want guidance**, and **scriptable
 
 ### npm
 ```bash
-npm install --save-dev azdo-cli
+npm install --save-dev @gfean/azdo-cli
 ```
 
 ### yarn
 
 ```bash
-yarn add --dev azdo-cli
+yarn add --dev @gfean/azdo-cli
 ```
 
 Run using:
