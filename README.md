@@ -9,6 +9,10 @@ Built by **gfean**.
 
 ---
 
+<img src="https://raw.githubusercontent.com/GFean/azdo-cli/main/assets/build_viewer.png" alt="azdo build example output" width="900" />
+
+---
+
 ## Table of contents
 
 - [What is azdo-cli?](#what-is-azdo-cli)
@@ -222,7 +226,7 @@ npx azdo build --param releaseNotes="Release candidate build"
 npx azdo build --no-prompt --branch main
 ```
 
-<img src="assets/build_viewer.png" alt="azdo build example output" width="900" />
+<img src="https://raw.githubusercontent.com/GFean/azdo-cli/main/assets/build_viewer.png" alt="azdo build example output" width="900" />
 
 ---
 
@@ -256,7 +260,7 @@ npx azdo run --pipeline <pipeline_id> --branch main
 npx azdo run --pipeline <pipeline_id> --param releaseNotes="Hotfix build"
 ```
 
-<img src="assets/run_viewer.png" alt="azdo run example output" width="900" />
+<img src="https://raw.githubusercontent.com/GFean/azdo-cli/main/assets/run_viewer.png" alt="azdo run example output" width="900" />
 
 ---
 
