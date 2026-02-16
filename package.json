@@ -1,6 +1,6 @@
 {
   "name": "@gfean/azdo-cli",
-  "version": "0.1.18",
+  "version": "0.2.0",
   "type": "commonjs",
   "main": "dist/cli.js",
   "types": "dist/cli.d.ts",
@@ -50,5 +50,6 @@
     "@types/node": "^25.1.0",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3"
-  }
+  },
+  "packageManager": "yarn@3.8.3+sha512.154080e749d50325f4df31bc341cd5ea2dc2c3ca9b2cfb8591c831ddefc8025084d9500223f61f4f73086f6d9faa746cbbf39bb988b41dfc042907687e8e7d7a"
 }

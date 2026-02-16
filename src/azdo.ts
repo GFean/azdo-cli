@@ -35,6 +35,12 @@ export type PipelineDefinition = {
   };
 };
 
+export type AuthenticatedUser = {
+  id?: string;
+  displayName: string;
+  uniqueName?: string;
+};
+
 function getAuthHeader(pat: string): string {
   const token = Buffer.from(`:${pat}`).toString("base64");
   return `Basic ${token}`;
@@ -46,6 +52,30 @@ function normalizeOrgUrl(orgUrl: string): string {
 
 function getRunUrl(run: any): string | undefined {
   return run?._links?.web?.href ?? run?.url;
+}
+
+async function azdoOrgRequest<T>(
+  orgUrl: string,
+  pat: string,
+  path: string,
+  options: RequestInit
+): Promise<T> {
+  const url = `${normalizeOrgUrl(orgUrl)}/${path.replace(/^\/+/, "")}`;
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: getAuthHeader(pat),
+      ...(options.headers || {}),
+    },
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`AzDO API error ${res.status}: ${body}`);
+  }
+
+  return (await res.json()) as T;
 }
 
 async function azdoRequest<T>(
@@ -70,6 +100,43 @@ async function azdoRequest<T>(
   }
 
   return (await res.json()) as T;
+}
+
+export async function getAuthenticatedUser(
+  orgUrl: string,
+  pat: string
+): Promise<AuthenticatedUser> {
+  const res = await azdoOrgRequest<{
+    authenticatedUser?: {
+      id?: string;
+      uniqueName?: string;
+      providerDisplayName?: string;
+      customDisplayName?: string;
+      displayName?: string;
+    };
+  }>(
+    orgUrl,
+    pat,
+    "_apis/connectionData?connectOptions=none&lastChangeId=-1&lastChangeId64=-1&api-version=7.1-preview.1",
+    { method: "GET" }
+  );
+
+  const user = res.authenticatedUser;
+  const displayName =
+    user?.providerDisplayName ??
+    user?.customDisplayName ??
+    user?.displayName ??
+    user?.uniqueName;
+
+  if (!displayName) {
+    throw new Error("Could not determine authenticated Azure DevOps user");
+  }
+
+  return {
+    id: user?.id,
+    displayName,
+    uniqueName: user?.uniqueName,
+  };
 }
 
 export async function triggerPipelineRun(

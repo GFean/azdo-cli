@@ -10,10 +10,12 @@ import { createColors, isColorSupported } from "colorette";
 import dotenv from "dotenv";
 import { getAzdoConfig, getAzdoEnv } from "./config";
 import {
+  getAuthenticatedUser,
   getPipelineYaml,
   listPipelines,
   triggerPipelineRun,
   waitForCompletion,
+  type AuthenticatedUser,
   type PipelineInfo,
   type RunInfo,
 } from "./azdo";
@@ -24,7 +26,7 @@ import {
   type AzdoConfig as AzdoFileConfig,
   type PipelineEntry,
 } from "./config-file";
-import { upsertEnvVar } from "./env-file";
+import { clearStoredPat, getPatStorePath, loadStoredPat, saveStoredPat } from "./pat-store";
 import YAML from "yaml";
 
 const pkgPath = join(__dirname, "..", "package.json");
@@ -87,11 +89,13 @@ program.addHelpText(
     "",
     "Examples:",
     "  $ azdo init",
+    "  $ azdo login",
+    "  $ azdo whoami",
     "  $ azdo build",
     "  $ azdo run --pipeline <pipeline_id> --branch develop",
     "",
     "Environment:",
-    "  AZDO_ORG_URL, AZDO_PROJECT, AZDO_PAT",
+    "  AZDO_ORG_URL, AZDO_PROJECT",
   ].join("\n")
 );
 
@@ -581,17 +585,191 @@ function printRun(run: RunInfo): void {
   }
 }
 
+function resolveOrgUrlCandidate(explicit?: string): string | undefined {
+  if (explicit && explicit.trim().length > 0) return explicit.trim();
+  const envOrg = process.env.AZDO_ORG_URL?.trim();
+  if (envOrg) return envOrg;
+  try {
+    const cfg = loadConfig(process.cwd());
+    const fromConfig = cfg?.orgUrl?.trim();
+    return fromConfig && fromConfig.length > 0 ? fromConfig : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function resolveOrgUrlForIdentity(explicit?: string): Promise<string> {
+  const existing = resolveOrgUrlCandidate(explicit);
+  if (existing) return existing;
+
+  const typed = String(
+    exitIfCancel(
+      await text({
+        message: "Azure DevOps org URL",
+        placeholder: "https://dev.azure.com/your-org",
+        validate: (v) => {
+          if (!v || v.trim().length === 0) return "Org URL is required";
+          if (!v.startsWith("https://")) return "Org URL must start with https://";
+          return undefined;
+        },
+      })
+    )
+  ).trim();
+  return typed;
+}
+
+async function fetchAuthenticatedUserOrThrow(
+  orgUrl: string,
+  pat: string
+): Promise<AuthenticatedUser> {
+  try {
+    return await getAuthenticatedUser(orgUrl, pat);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(`Authentication failed: ${message}`);
+  }
+}
+
+const loginCommand = program
+  .command("login")
+  .description("Authenticate and store Azure DevOps PAT in local credential storage")
+  .option("--pat <token>", "PAT value (prefer prompt to avoid shell history)")
+  .option("--org-url <url>", "Azure DevOps org URL (falls back to env/config)")
+  .option("--show-path", "Print credential storage path")
+  .action(async (options: { pat?: string; orgUrl?: string; showPath?: boolean }) => {
+    try {
+      intro("🔐 azdo login");
+      let pat = options.pat?.trim();
+      if (!pat) {
+        pat = String(
+          exitIfCancel(
+            await password({
+              message: "Personal Access Token (PAT)",
+              validate: (v) => (!v || v.trim().length === 0 ? "PAT is required" : undefined),
+            })
+          )
+        ).trim();
+      }
+
+      const orgUrl = await resolveOrgUrlForIdentity(options.orgUrl);
+      const authSpinner = spinner();
+      authSpinner.start("Verifying credentials");
+      let user: AuthenticatedUser;
+      try {
+        user = await fetchAuthenticatedUserOrThrow(orgUrl, pat);
+      } catch (err) {
+        authSpinner.stop("Authentication failed");
+        throw err;
+      }
+      authSpinner.stop("Authentication successful");
+
+      saveStoredPat(pat);
+      ui.success(`Logged in as ${user.displayName}`);
+      if (user.uniqueName && user.uniqueName !== user.displayName) {
+        ui.info(`Account: ${user.uniqueName}`);
+      }
+      ui.info(`Org URL: ${orgUrl}`);
+      if (options.showPath) {
+        ui.info(`Credential path: ${getPatStorePath()}`);
+      }
+      outro("✅ Done");
+    } catch (err) {
+      ui.error(err instanceof Error ? err.message : String(err));
+      process.exitCode = 1;
+    }
+  });
+
+loginCommand.addHelpText(
+  "after",
+  [
+    "",
+    "Examples:",
+    "  $ azdo login",
+    "  $ azdo login --org-url https://dev.azure.com/your-org",
+    "  $ azdo login --pat <your_pat> --org-url https://dev.azure.com/your-org",
+    "",
+    "Notes:",
+    "  Verifies PAT before saving it.",
+    "  Stores PAT in a user-level file so npx/yarn runs can reuse it.",
+  ].join("\n")
+);
+
+const whoamiCommand = program
+  .command("whoami")
+  .description("Show the Azure DevOps user for the stored login")
+  .option("--org-url <url>", "Azure DevOps org URL (falls back to env/config)")
+  .action(async (options: { orgUrl?: string }) => {
+    try {
+      const pat = loadStoredPat();
+      if (!pat) {
+        throw new Error("Not authenticated. Run azdo login first.");
+      }
+
+      const orgUrl = resolveOrgUrlCandidate(options.orgUrl);
+      if (!orgUrl) {
+        throw new Error(
+          "Missing Azure DevOps org URL. Set AZDO_ORG_URL, pass --org-url, or run in a folder with azdo.config.json."
+        );
+      }
+
+      const user = await fetchAuthenticatedUserOrThrow(orgUrl, pat);
+      ui.success(`Logged in as ${user.displayName}`);
+      if (user.uniqueName && user.uniqueName !== user.displayName) {
+        ui.info(`Account: ${user.uniqueName}`);
+      }
+      ui.info(`Org URL: ${orgUrl}`);
+    } catch (err) {
+      ui.error(err instanceof Error ? err.message : String(err));
+      process.exitCode = 1;
+    }
+  });
+
+whoamiCommand.addHelpText(
+  "after",
+  [
+    "",
+    "Examples:",
+    "  $ azdo whoami",
+    "  $ azdo whoami --org-url https://dev.azure.com/your-org",
+  ].join("\n")
+);
+
+const logoutCommand = program
+  .command("logout")
+  .description("Delete stored azdo-cli PAT")
+  .action(() => {
+    try {
+      const removed = clearStoredPat();
+      if (removed) {
+        ui.success("Stored PAT removed");
+      } else {
+        ui.info("No stored PAT found");
+      }
+    } catch (err) {
+      ui.error(err instanceof Error ? err.message : String(err));
+      process.exitCode = 1;
+    }
+  });
+
+logoutCommand.addHelpText(
+  "after",
+  [
+    "",
+    "Examples:",
+    "  $ azdo logout",
+  ].join("\n")
+);
+
 const initCommand = program
   .command("init")
-  .description(`Create ${CONFIG_FILENAME} (and optionally .env) in the current directory`)
-  .option("--no-write-env", "Do not write AZDO_PAT into .env")
+  .description(`Create ${CONFIG_FILENAME} in the current directory`)
   .option("--interactive", "Prompt with defaults from env")
-  .action(async (options: { writeEnv: boolean; interactive: boolean }) => {
+  .action(async (options: { interactive: boolean }) => {
     try {
-      const envConfig = getAzdoConfig();
-      let orgUrl = envConfig.orgUrl;
-      let project = envConfig.project;
-      let pat = envConfig.pat;
+      const envConfig = getAzdoEnv(false);
+      const pat = envConfig.pat;
+      let orgUrl = envConfig.orgUrl ?? "";
+      let project = envConfig.project ?? "";
 
       if (options.interactive) {
         intro("🚀 azdo init");
@@ -600,7 +778,7 @@ const initCommand = program
             await text({
               message: "Azure DevOps org URL",
               placeholder: "https://dev.azure.com/your-org",
-              initialValue: envConfig.orgUrl,
+              initialValue: orgUrl,
               validate: (v) => {
                 if (!v || v.trim().length === 0) return "Org URL is required";
                 if (!v.startsWith("https://")) return "Org URL must start with https://";
@@ -615,33 +793,19 @@ const initCommand = program
             await text({
               message: "Project name",
               placeholder: "Your Project Name",
-              initialValue: envConfig.project,
+              initialValue: project,
               validate: (v) => (!v || v.trim().length === 0 ? "Project is required" : undefined),
             })
           )
         ).trim();
-
-        const useEnvPat = Boolean(
-          exitIfCancel(
-            await confirm({
-              message: "Use AZDO_PAT from env?",
-              initialValue: true,
-            })
-          )
-        );
-
-        if (!useEnvPat) {
-          pat = String(
-            exitIfCancel(
-              await password({
-                message: "Personal Access Token (PAT)",
-                validate: (v) => (!v || v.trim().length === 0 ? "PAT is required" : undefined),
-              })
-            )
-          ).trim();
-        }
       } else {
         ui.start("Generating azdo.config.json from env + Azure DevOps...");
+        if (!orgUrl) {
+          throw new Error("Missing env AZDO_ORG_URL");
+        }
+        if (!project) {
+          throw new Error("Missing env AZDO_PROJECT");
+        }
       }
 
       const pollMs = parsePollMs(process.env.AZDO_POLL_MS);
@@ -655,7 +819,6 @@ const initCommand = program
       const config: AzdoFileConfig = {
         orgUrl,
         project,
-        auth: { patEnv: "AZDO_PAT" },
         defaults: { branch: envConfig.defaultBranch, pollMs },
         pipelines: buildPipelineMap(pipelineList),
       };
@@ -665,20 +828,11 @@ const initCommand = program
         `Wrote ${CONFIG_FILENAME} (${pipelineList.length} pipelines)`
       );
 
-      if (options.writeEnv) {
-        upsertEnvVar(process.cwd(), "AZDO_PAT", pat);
-        ui.success("Updated .env (AZDO_PAT)");
-      } else {
-        ui.info("Skipped writing .env");
-      }
-
       if (options.interactive) {
         outro("✅ Done");
       }
     } catch (err) {
-      if (!(err instanceof Error && err.message.startsWith("Missing env "))) {
-        ui.error(err instanceof Error ? err.message : String(err));
-      }
+      ui.error(err instanceof Error ? err.message : String(err));
       process.exitCode = 1;
     }
   });
@@ -692,7 +846,8 @@ initCommand.addHelpText(
     "  $ azdo init --interactive",
     "",
     "Notes:",
-    "  Reads AZDO_ORG_URL/AZDO_PROJECT/AZDO_PAT from .env or shell.",
+    "  Requires prior auth: run azdo login first.",
+    "  Reads AZDO_ORG_URL/AZDO_PROJECT from .env or shell.",
     "  Uses Azure DevOps API to prefill pipeline IDs in the config.",
   ].join("\n")
 );
@@ -896,9 +1051,7 @@ const buildCommand = program
         }
       }
     } catch (err) {
-      if (!(err instanceof Error && err.message.startsWith("Missing env "))) {
-        ui.error(err instanceof Error ? err.message : String(err));
-      }
+      ui.error(err instanceof Error ? err.message : String(err));
       process.exitCode = 1;
     }
   });
@@ -990,9 +1143,7 @@ const runCommand = program
         }
       }
     } catch (err) {
-      if (!(err instanceof Error && err.message.startsWith("Missing env "))) {
-        ui.error(err instanceof Error ? err.message : String(err));
-      }
+      ui.error(err instanceof Error ? err.message : String(err));
       process.exitCode = 1;
     }
   });

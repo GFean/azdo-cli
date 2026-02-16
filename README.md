@@ -22,12 +22,15 @@ Built by **gfean**.
   - [npm](#npm)
   - [yarn](#yarn)
 - [Quick start](#quick-start)
-  - [1️⃣ Create a `.env` file](#1-create-a-env-file)
+  - [1️⃣ Configure credentials](#1-configure-credentials)
   - [2️⃣ Initialize azdo-cli](#2-initialize-azdo-cli)
   - [3️⃣ Run a pipeline interactively](#3-run-a-pipeline-interactively)
 - [Configuration](#configuration)
-  - [Environment variables (required)](#environment-variables-required)
+  - [Environment variables](#environment-variables)
   - [`azdo.config.json`](#azdoconfigjson)
+- [`azdo login`](#azdo-login)
+- [`azdo whoami`](#azdo-whoami)
+- [`azdo logout`](#azdo-logout)
 - [`azdo build`](#azdo-build)
   - [Common options](#common-options)
   - [Examples](#examples)
@@ -60,6 +63,9 @@ It’s designed to feel **interactive when you want guidance**, and **scriptable
 
 | Command | Purpose |
 |------|--------|
+| `azdo login` | Authenticate PAT and store credentials locally |
+| `azdo whoami` | Show the currently authenticated Azure DevOps user |
+| `azdo logout` | Remove stored PAT |
 | `azdo init` | Set up project configuration |
 | `azdo build` | Interactive, guided pipeline run |
 | `azdo run` | Trigger a specific pipeline by ID |
@@ -104,12 +110,24 @@ yarn azdo --help
 
 ## Quick start
 
-### 1️⃣ Create a `.env` file
+### 1️⃣ Configure credentials
+
+```bash
+npx azdo login
+# or
+yarn azdo login
+```
+
+This will:
+* verify your PAT
+* store it in user-level credentials
+* show which user was authenticated
+
+Then keep org/project in `.env`:
 
 ```env
 AZDO_ORG_URL=https://dev.azure.com/your-organization
 AZDO_PROJECT=Your Project Name
-AZDO_PAT=your_personal_access_token
 ```
 
 > Treat your PAT like a password.
@@ -129,7 +147,6 @@ This will:
 
 * Create `azdo.config.json` in your repo
 * Discover available pipelines
-* Optionally store your PAT locally
 
 ---
 
@@ -152,13 +169,12 @@ You’ll be guided through:
 
 ## Configuration
 
-### Environment variables (required)
+### Environment variables
 
 | Variable       | Description                   |
 | -------------- | ----------------------------- |
 | `AZDO_ORG_URL` | Azure DevOps organization URL |
 | `AZDO_PROJECT` | Exact project name            |
-| `AZDO_PAT`     | Personal Access Token         |
 
 ---
 
@@ -173,7 +189,6 @@ Example:
 {
   "orgUrl": "https://dev.azure.com/your-organization",
   "project": "Your Project Name",
-  "auth": { "patEnv": "AZDO_PAT" },
   "defaults": { "branch": "develop", "pollMs": 7000 },
   "pipelines": {
     "staging_build": {
@@ -194,6 +209,37 @@ Example:
 * Pipeline keys are friendly aliases
 * `branch` overrides the default branch for that pipeline
 * YAML paths can be pinned if parameter discovery is needed
+
+---
+
+## `azdo login`
+
+Authenticate and store PAT credentials locally.
+
+```bash
+npx azdo login
+npx azdo login --org-url https://dev.azure.com/your-organization
+```
+
+---
+
+## `azdo whoami`
+
+Show which Azure DevOps user is currently authenticated.
+
+```bash
+npx azdo whoami
+```
+
+---
+
+## `azdo logout`
+
+Remove locally stored credentials.
+
+```bash
+npx azdo logout
+```
 
 ---
 

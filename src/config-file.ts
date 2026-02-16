@@ -13,7 +13,6 @@ export type PipelineEntry = {
 export type AzdoConfig = {
   orgUrl: string;
   project: string;
-  auth?: { patEnv?: string };
   defaults?: { branch?: string; pollMs?: number };
   pipelines?: Record<string, PipelineEntry>;
 };
