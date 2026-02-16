@@ -130,9 +130,6 @@ AZDO_ORG_URL=https://dev.azure.com/your-organization
 AZDO_PROJECT=Your Project Name
 ```
 
-> Treat your PAT like a password.
-> `.env` files should not be committed.
-
 ---
 
 ### 2️⃣ Initialize azdo-cli
